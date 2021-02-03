@@ -1,10 +1,18 @@
 pipeline {
     agent any
     stages {
-        stage('Hello') {
+        stage('Plan') {
             steps {
                 echo 'Hello World'
             }
+        }
+        stage('Approve') {
+          steps {
+            timeout(unit: 'MINUTES', time: 1) {
+              slackSend channel: "#jenkins", color: "good", message: "${JOB_NAME}を続行しても良いでしょうか？\n<$JOB_URL|ここをクリックしてJenkins上で承認する>"
+              input id: "approver", message: "問題ない場合はProccedボタンを押してください"
+            }
+          }
         }
         stage('Last') {
             steps {
