@@ -4,16 +4,25 @@ pipeline {
   environment {
     PROJECT_NAME = """${sh(
       returnStdout: true,
-      script: 'echo "${JOB_NAME}" | | awk -F"-" "{print $1}"'
+      script: 'echo "${JOB_NAME}" | awk -F"-" "{print \\$1}"'
+    )}"""
+    ENV_NAME = """${sh(
+      returnStdout: true,
+      script: 'echo "${JOB_NAME}" | awk -F"-" "{print \\$NF}"'
     )}"""
     INFO_COLOR = "#00BFFF"
   }
+
   stages {
     stage('Initialize') {
-      if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'staging') {
-        sh 'ls ./config/${BRANCH_NAME}/'
-      } else {
-        sh 'ls ./config/sandbox/'
+      steps {
+        script {
+          if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'staging') {
+            sh 'ls ./config/${env.BRANCH_NAME}/'
+          } else {
+            sh 'ls ./config/sandbox/'
+          }
+        }
       }
     }
 
@@ -30,7 +39,7 @@ pipeline {
 
       steps {
         timeout(unit: 'MINUTES', time: 1) {
-          slackSend channel: "#jenkins", color: "${INFO_COLOR}", title: "${PROJECT_NAME}", message: "${JOB_NAME}を続行しても良いでしょうか？\n<$JOB_URL|ここをクリックしてJenkins上で承認 or 否認してください>"
+          slackSend channel: "#jenkins", color: "${INFO_COLOR}", message: "[${env.PROJECT_NAME}]\n${JOB_NAME}を続行しても良いでしょうか？\n<$JOB_URL|ここをクリックしてJenkins上で承認 or 否認してください>"
           input id: "approver", message: "問題ない場合はProccedボタンを押してください"
         }
       }
@@ -38,22 +47,22 @@ pipeline {
 
     stage('Apply') {
       steps {
-        slackSend color: "${INFO_COLOR}", message: "Applyしたよー"
+        slackSend color: "${env.INFO_COLOR}", message: "Applyしたよー"
       }
     }
   }
 
   post {
     success {
-      slackSend channel: "#jenkins", color: "good", title: "${PROJECT_NAME}/${JOB_NAME}", message: "<$BUILD_URL|$BUILD_NUMBER> sucessefully finished "
+      slackSend channel: "#jenkins", color: "good", message: "[${env.PROJECT_NAME}]\n<$BUILD_URL|${JOB_NAME}/$BUILD_NUMBER> sucessefully finished"
     }
 
     failure {
-      slackSend channel: "#jenkins", color: "danger", title: "${PROJECT_NAME}/${JOB_NAME}", message: "<$BUILD_URL|$BUILD_NUMBER> failed "
+      slackSend channel: "#jenkins", attachments: [[title: "[${PROJECT_NAME}]", text: "<$BUILD_URL|${JOB_NAME}/$BUILD_NUMBER> failed", color: 'danger']]
     }
 
     aborted {
-      slackSend channel: "#jenkins", color: "warning", title: "${PROJECT_NAME}/${JOB_NAME}", message: "<$BUILD_URL|$BUILD_NUMBER> has beeen aborted"
+      slackSend channel: "#jenkins", color: "warning", message: "[${JOB_NAME}]\n<$BUILD_URL|$BUILD_NUMBER> has beeen aborted"
     }
   }
 }
